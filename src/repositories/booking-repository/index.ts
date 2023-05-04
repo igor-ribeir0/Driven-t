@@ -1,57 +1,60 @@
+import { Booking } from '@prisma/client';
 import { prisma } from '@/config';
 
-async function findBookingWithUserId(userId: number) {
-  const findBooking = await prisma.booking.findFirst({
-    where: { id: userId },
-  });
+type CreateParams = Omit<Booking, 'id' | 'createdAt' | 'updatedAt'>;
+type UpdateParams = Omit<Booking, 'createdAt' | 'updatedAt'>;
 
-  const findRoom = await prisma.room.findFirst({
-    where: { id: findBooking.roomId },
-  });
-
-  const findHotel = await prisma.hotel.findFirst({
-    where: { id: findRoom.hotelId },
-  });
-
-  return {
-    id: findBooking.id,
-    Room: {
-      name: findRoom.name,
-      capacity: findRoom.capacity,
-      hotel: findHotel.name,
-      imageHotel: findHotel.image,
-    },
-  };
-}
-
-async function findRoomByRoomId(roomId: number) {
-  return await prisma.room.findFirst({
-    where: { id: roomId },
-  });
-}
-
-async function findNumberOfVacancies(roomId: number) {
-  return await prisma.booking.count({
-    where: { roomId: roomId },
-  });
-}
-
-async function insertNewBooking(roomId: number, userId: number) {
-  await prisma.booking.create({
+async function create({ roomId, userId }: CreateParams): Promise<Booking> {
+  return prisma.booking.create({
     data: {
-      userId: userId,
-      roomId: roomId,
+      roomId,
+      userId,
     },
   });
+}
 
-  return 'OK';
+async function findByRoomId(roomId: number) {
+  return prisma.booking.findMany({
+    where: {
+      roomId,
+    },
+    include: {
+      Room: true,
+    },
+  });
+}
+
+async function findByUserId(userId: number) {
+  return prisma.booking.findFirst({
+    where: {
+      userId,
+    },
+    include: {
+      Room: true,
+    },
+  });
+}
+
+async function upsertBooking({ id, roomId, userId }: UpdateParams) {
+  return prisma.booking.upsert({
+    where: {
+      id,
+    },
+    create: {
+      roomId,
+      userId,
+    },
+    update: {
+      roomId,
+    },
+  });
 }
 
 const bookingRepository = {
-  findBookingWithUserId,
-  findRoomByRoomId,
-  findNumberOfVacancies,
-  insertNewBooking,
+  create,
+  findByRoomId,
+  findByUserId,
+  upsertBooking,
 };
 
 export default bookingRepository;

@@ -1,30 +1,50 @@
-import { Response } from 'express';
+import { NextFunction, Response } from 'express';
 import httpStatus from 'http-status';
+
 import { AuthenticatedRequest } from '@/middlewares';
 import bookingService from '@/services/booking-service';
 
-export async function getBookingByUser(req: AuthenticatedRequest, res: Response) {
-  const { userId } = req;
-
+export async function listBooking(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
-    const booking = await bookingService.getBookingWithUserId(userId);
-
-    return res.status(httpStatus.OK).send(booking);
+    const { userId } = req;
+    const booking = await bookingService.getBooking(userId);
+    return res.status(httpStatus.OK).send({
+      id: booking.id,
+      Room: booking.Room,
+    });
   } catch (error) {
-    return res.sendStatus(httpStatus.NO_CONTENT);
+    next(error);
   }
 }
 
-export async function createBooking(req: AuthenticatedRequest, res: Response) {
+export async function bookingRoom(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  try {
+    const { userId } = req;
+    const { roomId } = req.body as Record<string, number>;
+
+    const booking = await bookingService.bookingRoomById(userId, roomId);
+
+    return res.status(httpStatus.OK).send({
+      bookingId: booking.id,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function changeBooking(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   const { userId } = req;
-  const { roomId } = req.body;
+  const bookingId = Number(req.params.bookingId);
+  if (!bookingId) return res.sendStatus(httpStatus.BAD_REQUEST);
 
   try {
-    await bookingService.getRoomById(roomId);
-    await bookingService.searchBookingWithUserId(userId);
-    await bookingService.creatingBooking(roomId, userId);
-    return res.sendStatus(httpStatus.OK);
+    const { roomId } = req.body as Record<string, number>; // <tipo da chave, tipo do valor>
+    const booking = await bookingService.changeBookingRoomById(userId, roomId);
+
+    return res.status(httpStatus.OK).send({
+      bookingId: booking.id,
+    });
   } catch (error) {
-    return res.sendStatus(httpStatus.NO_CONTENT);
+    next(error);
   }
 }
